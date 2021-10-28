@@ -1,9 +1,11 @@
 import { configureStore, ThunkAction, Action } from '@reduxjs/toolkit';
-import counterReducer from '../features/counter/counterSlice';
+import stockDataReducer from './stockDataSlice/stockDataSlice';
+import signalRHubStateReducer from './signalRHubSlice/signalRHubSlice';
 
 export const store = configureStore({
   reducer: {
-    counter: counterReducer,
+    stockData: stockDataReducer,
+    signalRHubState: signalRHubStateReducer
   },
 });
 

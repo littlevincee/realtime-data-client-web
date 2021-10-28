@@ -1,0 +1,22 @@
+.side-nav-bar {
+  min-height: 100vh;
+
+  &__btn-container {
+    display: flex;
+    justify-content: center;
+  }
+
+  &__btn__trigger--white {
+    color: white;
+    font-size: 25px;
+
+  }
+
+  .menu-container {
+    padding-top: 28px;
+  }
+
+  .side-bar-icon-font {
+    font-size: 20px;
+  }
+}

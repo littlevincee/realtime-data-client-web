@@ -1,58 +1,91 @@
-import React from 'react';
-import logo from './logo.svg';
-import { Counter } from './features/counter/Counter';
-import './App.css';
+import React, { useState, useEffect } from 'react';
+import {
+  BrowserRouter as Router,
+  Switch,
+} from 'react-router-dom';
+import {
+  HubConnection,
+  HubConnectionBuilder,
+  HubConnectionState,
+  LogLevel } from '@microsoft/signalr';
+import { DefaultLayout } from './app/layout/DefaultLayout';
+import { stockDataHubUrl } from './app/shared/configurations';
+import { useAppDispatch } from './app/redux/hooks';
+import { addData } from './app/redux/stockDataSlice/stockDataSlice';
+import { changeHubConnectionState } from './app/redux/signalRHubSlice/signalRHubSlice';
 
-function App() {
+export const App = () => {
+  const dispatch = useAppDispatch();
+
+  const [signalRHubConnection, setSignalRHubConnection] = useState<null | HubConnection>(null);
+
+  // Create signalR connection once component did mount
+  useEffect(() => {
+    const hubConnection = new HubConnectionBuilder()
+      .withUrl(stockDataHubUrl)
+      .withAutomaticReconnect()
+      .configureLogging(LogLevel.Information)
+      .build();
+
+    dispatch(changeHubConnectionState(HubConnectionState.Connecting));
+
+    setSignalRHubConnection(hubConnection);
+  }, []);
+
+  // Establish connection to hub and listen
+  useEffect(() => {
+    if (signalRHubConnection) {
+
+      let retryCount = 5;
+
+      const startConnection = async () => {
+        try {
+          await signalRHubConnection.start();
+          dispatch(changeHubConnectionState(HubConnectionState.Connected));
+
+          signalRHubConnection.stream('GetData').subscribe({
+            next: (item: any) => {
+              dispatch(addData(item));
+            },
+            complete: () => {
+              console.log('complete');
+            },
+            error: (err) => {
+              console.log(err);
+            }
+          });
+        } catch (err) {
+          dispatch(changeHubConnectionState(HubConnectionState.Reconnecting));
+          if (retryCount !== 0) {
+            setTimeout(() => startConnection(), 5000);
+
+            retryCount--;
+
+            console.log(retryCount);
+          } else {
+            dispatch(changeHubConnectionState(HubConnectionState.Disconnected));
+          }
+        }
+      };
+
+      startConnection();
+    }
+
+    return () => {
+      if (signalRHubConnection) {
+        dispatch(changeHubConnectionState(HubConnectionState.Disconnected));
+        signalRHubConnection.stop();
+      }
+    };
+  }, [signalRHubConnection]);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <Counter />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <span>
-          <span>Learn </span>
-          <a
-            className="App-link"
-            href="https://reactjs.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            React
-          </a>
-          <span>, </span>
-          <a
-            className="App-link"
-            href="https://redux.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Redux
-          </a>
-          <span>, </span>
-          <a
-            className="App-link"
-            href="https://redux-toolkit.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Redux Toolkit
-          </a>
-          ,<span> and </span>
-          <a
-            className="App-link"
-            href="https://react-redux.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            React Redux
-          </a>
-        </span>
-      </header>
-    </div>
+    <>
+      <Router>
+        <Switch>
+          <DefaultLayout />
+        </Switch>
+      </Router>
+    </>
   );
-}
-
-export default App;
+};
